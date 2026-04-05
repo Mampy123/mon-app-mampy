@@ -26,6 +26,11 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "owner": "mampy123"
+    "owner": "mampy123",
+    "extra": {
+      "eas": {
+        "projectId": "27ad17fb-d30c-46ec-b8e1-f54d231f689d"
+      }
+    }
   }
 }
