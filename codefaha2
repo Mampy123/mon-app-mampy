@@ -1,0 +1,264 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList,
+  Keyboard, Dimensions, Switch, Alert, KeyboardAvoidingView, Platform
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { NavigationContainer } from '@react-navigation/native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Ionicons } from '@expo/vector-icons';
+import { PieChart } from "react-native-chart-kit";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+// --- CONFIG ---
+const screenWidth = Dimensions.get("window").width;
+const STORAGE_KEY = "@pocket_data";
+const BUDGET_KEY = "@pocket_budget";
+
+const categories = [
+  { name: "Sakafo", color: "#f1c40f" },
+  { name: "Fitaterana", color: "#e67e22" },
+  { name: "Fianarana", color: "#3498db" },
+  { name: "Hafa", color: "#95a5a6" }
+];
+
+const translations = {
+  en: { home: "Home", total: "Total spent", settings: "Settings", lang: "Language", theme: "Dark Mode", daily: "Today", add: "Add", budget: "Budget", placeholder: "Item name...", amount: "Amount...", search: "Search..." },
+  fr: { home: "Accueil", total: "Total dépensé", settings: "Paramètres", lang: "Langue", theme: "Mode Sombre", daily: "Aujourd'hui", add: "Ajouter", budget: "Budget", placeholder: "Nom...", amount: "Montant...", search: "Rechercher..." },
+  mg: { home: "Trano", total: "Total lany", settings: "Safidy", lang: "Fiteny", theme: "Loko maizina", daily: "Androany", add: "Hampiditra", budget: "Tetibola", placeholder: "Inona ny vidina...", amount: "Hoatrinona...", search: "Hikaroka..." }
+};
+
+const Tab = createBottomTabNavigator();
+
+export default function App() {
+  const [expenses, setExpenses] = useState([]);
+  const [budget, setBudget] = useState(500000);
+  const [lang, setLang] = useState('mg');
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // --- LOAD DATA ---
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const savedExp = await AsyncStorage.getItem(STORAGE_KEY);
+        const savedBud = await AsyncStorage.getItem(BUDGET_KEY);
+        if (savedExp) setExpenses(JSON.parse(savedExp));
+        if (savedBud) setBudget(parseFloat(savedBud));
+      } catch (e) { console.error("Load error", e); }
+      finally { setIsLoaded(true); }
+    };
+    loadData();
+  }, []);
+
+  // --- SAVE DATA ---
+  useEffect(() => {
+    if (isLoaded) {
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
+      AsyncStorage.setItem(BUDGET_KEY, budget.toString());
+    }
+  }, [expenses, budget, isLoaded]);
+
+  const t = translations[lang];
+  const theme = isDarkMode ? darkTheme : lightTheme;
+
+  const total = expenses.reduce((sum, item) => sum + item.amount, 0);
+  const todayStr = new Date().toISOString().split("T")[0];
+  const dailyTotal = expenses
+    .filter(e => e.date === todayStr)
+    .reduce((s, i) => s + i.amount, 0);
+
+  // --- SUB-SCREENS ---
+
+  const HomeScreen = () => {
+    const [search, setSearch] = useState("");
+    const filtered = expenses.filter(e => e.label.toLowerCase().includes(search.toLowerCase()));
+
+    const chartData = useMemo(() => categories.map(c => ({
+      name: c.name,
+      population: expenses.filter(e => e.category === c.name).reduce((s, i) => s + i.amount, 0),
+      color: c.color,
+      legendFontColor: isDarkMode ? "#FFF" : "#7f8c8d"
+    })).filter(d => d.population > 0), [expenses, isDarkMode]);
+
+    return (
+      <SafeAreaView style={[styles.container, theme.bg]}>
+        <FlatList
+          data={filtered}
+          keyExtractor={item => item.id}
+          ListHeaderComponent={
+            <>
+              <View style={[styles.budgetCard, { backgroundColor: isDarkMode ? '#333' : '#2C3E50' }]}>
+                <Text style={styles.whiteLabel}>{t.total}</Text>
+                <Text style={styles.totalVal}>{total.toLocaleString()} Ar</Text>
+                <View style={styles.progressBg}>
+                  <View style={[styles.progressBar, { 
+                      width: `${Math.min((total / budget) * 100, 100)}%`,
+                      backgroundColor: total > budget ? '#e74c3c' : '#2ecc71' 
+                  }]} />
+                </View>
+                <View style={styles.rowBetween}>
+                  <Text style={styles.smallWhite}>{t.daily}: {dailyTotal.toLocaleString()} Ar</Text>
+                  <Text style={styles.smallWhite}>{t.budget}: {budget.toLocaleString()} Ar</Text>
+                </View>
+              </View>
+
+              {chartData.length > 0 && (
+                <View style={[styles.card, theme.card, { alignItems: 'center' }]}>
+                  <PieChart
+                    data={chartData}
+                    width={screenWidth - 40}
+                    height={180}
+                    chartConfig={{ color: (o = 1) => `rgba(0,0,0,${o})` }}
+                    accessor="population"
+                    backgroundColor="transparent"
+                    paddingLeft="15"
+                    absolute
+                  />
+                </View>
+              )}
+
+              <TextInput
+                style={[styles.input, theme.input]}
+                placeholder={t.search}
+                placeholderTextColor="#999"
+                value={search}
+                onChangeText={setSearch}
+              />
+            </>
+          }
+          renderItem={({ item }) => (
+            <View style={[styles.item, theme.card]}>
+              <View>
+                <Text style={[styles.itemLabel, theme.text]}>{item.label}</Text>
+                <Text style={styles.subText}>{item.category} • {item.date}</Text>
+              </View>
+              <Text style={styles.itemPrice}>-{item.amount.toLocaleString()} Ar</Text>
+            </View>
+          )}
+        />
+      </SafeAreaView>
+    );
+  };
+
+  const AddScreen = () => {
+    const [label, setLabel] = useState("");
+    const [amount, setAmount] = useState("");
+    const [cat, setCat] = useState("Sakafo");
+
+    const save = () => {
+      const num = parseFloat(amount);
+      if (!label.trim() || isNaN(num) || num <= 0) return Alert.alert("Error", "Check inputs");
+      setExpenses([{ id: Date.now().toString(), label, amount: num, category: cat, date: todayStr }, ...expenses]);
+      setLabel(""); setAmount(""); Keyboard.dismiss();
+      Alert.alert("Success", "Saved!");
+    };
+
+    return (
+      <SafeAreaView style={[styles.container, theme.bg]}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <Text style={[styles.title, theme.text]}>{t.add}</Text>
+          <View style={[styles.card, theme.card]}>
+            <TextInput style={[styles.input, theme.input]} placeholder={t.placeholder} value={label} onChangeText={setLabel} />
+            <TextInput style={[styles.input, theme.input]} placeholder={t.amount} keyboardType="numeric" value={amount} onChangeText={setAmount} />
+            <View style={styles.rowAround}>
+              {categories.map(c => (
+                <TouchableOpacity key={c.name} onPress={() => setCat(c.name)} style={[styles.catBtn, cat === c.name && styles.activeCat]}>
+                  <Text style={cat === c.name ? styles.whiteText : theme.text}>{c.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TouchableOpacity style={styles.mainBtn} onPress={save}>
+              <Text style={styles.whiteText}>{t.add}</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  };
+
+  const SettingsScreen = () => {
+    const [bInput, setBInput] = useState("");
+    return (
+      <SafeAreaView style={[styles.container, theme.bg]}>
+        <Text style={[styles.title, theme.text]}>{t.settings}</Text>
+        <View style={[styles.card, theme.card]}>
+          <Text style={[styles.label, theme.text]}>{t.lang}</Text>
+          <View style={styles.rowAround}>
+            {['en', 'fr', 'mg'].map(l => (
+              <TouchableOpacity key={l} onPress={() => setLang(l)} style={[styles.langBtn, lang === l && styles.activeBtn]}>
+                <Text style={lang === l ? styles.whiteText : theme.text}>{l.toUpperCase()}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+        <View style={[styles.card, theme.card]}>
+          <Text style={[styles.label, theme.text]}>{t.theme}</Text>
+          <View style={styles.rowBetween}>
+            <Text style={theme.text}>{t.theme}</Text>
+            <Switch value={isDarkMode} onValueChange={setIsDarkMode} />
+          </View>
+        </View>
+        <View style={[styles.card, theme.card]}>
+          <Text style={[styles.label, theme.text]}>{t.budget}</Text>
+          <View style={styles.rowBetween}>
+            <TextInput style={[styles.input, theme.input, { width: '70%', marginBottom: 0 }]} placeholder="New Budget" keyboardType="numeric" value={bInput} onChangeText={setBInput} />
+            <TouchableOpacity style={[styles.mainBtn, { padding: 12 }]} onPress={() => { if(bInput) setBudget(parseFloat(bInput)); setBInput(""); Keyboard.dismiss(); }}>
+              <Text style={styles.whiteText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  };
+
+  return (
+    <NavigationContainer>
+      <Tab.Navigator
+        screenOptions={({ route }) => ({
+          tabBarIcon: ({ color, size }) => {
+            const icons = { Home: 'home', Add: 'add-circle', Settings: 'settings' };
+            return <Ionicons name={icons[route.name]} size={size} color={color} />;
+          },
+          headerShown: false,
+          tabBarStyle: { backgroundColor: isDarkMode ? '#1A1A1A' : '#FFF', borderTopWidth: 0 },
+          tabBarActiveTintColor: '#3498db',
+        })}
+      >
+        <Tab.Screen name="Home" component={HomeScreen} options={{ title: t.home }} />
+        <Tab.Screen name="Add" component={AddScreen} options={{ title: t.add }} />
+        <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: t.settings }} />
+      </Tab.Navigator>
+    </NavigationContainer>
+  );
+}
+
+// --- STYLES ---
+const lightTheme = { bg: { backgroundColor: '#F0F2F5' }, text: { color: '#2C3E50' }, card: { backgroundColor: '#FFF' }, input: { backgroundColor: '#F9F9F9', borderColor: '#DDD', color: '#000' } };
+const darkTheme = { bg: { backgroundColor: '#121212' }, text: { color: '#FFF' }, card: { backgroundColor: '#1E1E1E' }, input: { backgroundColor: '#2C2C2C', borderColor: '#444', color: '#FFF' } };
+
+const styles = StyleSheet.create({
+  container: { flex: 1, paddingHorizontal: 20 },
+  title: { fontSize: 28, fontWeight: 'bold', marginVertical: 20 },
+  card: { padding: 15, borderRadius: 15, marginBottom: 15, elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5 },
+  budgetCard: { padding: 20, borderRadius: 20, marginVertical: 20 },
+  whiteLabel: { color: '#BDC3C7', fontSize: 14 },
+  totalVal: { color: '#FFF', fontSize: 32, fontWeight: 'bold' },
+  progressBg: { height: 8, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 4, marginVertical: 12 },
+  progressBar: { height: '100%', borderRadius: 4 },
+  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  rowAround: { flexDirection: 'row', justifyContent: 'space-around', marginVertical: 15 },
+  smallWhite: { color: '#FFF', fontSize: 12 },
+  label: { fontWeight: 'bold', marginBottom: 10 },
+  input: { borderWidth: 1, padding: 12, borderRadius: 10, marginBottom: 10 },
+  mainBtn: { backgroundColor: '#3498db', padding: 15, borderRadius: 10, alignItems: 'center' },
+  langBtn: { padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#DDD', width: 65, alignItems: 'center' },
+  activeBtn: { backgroundColor: '#3498db', borderColor: '#3498db' },
+  catBtn: { padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#DDD' },
+  activeCat: { backgroundColor: '#3498db', borderColor: '#3498db' },
+  whiteText: { color: '#FFF', fontWeight: 'bold' },
+  item: { padding: 15, borderRadius: 12, marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  itemLabel: { fontSize: 16, fontWeight: '600' },
+  subText: { fontSize: 12, color: '#999', marginTop: 2 },
+  itemPrice: { color: '#e74c3c', fontWeight: 'bold', fontSize: 16 }
+});
