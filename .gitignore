@@ -1,5 +1,16 @@
+# Dépendances
 node_modules/
 .expo/
-android/
+
+# Fichiers de test personnels à ignorer
+pj1.tsx
+pj2.tsx
+pj3.tsx
+mitsitsyv1.tsx
+compteur(nande).tsx
+codefaha2/
 mon-app-mampy/
-.git/
+
+# Fichiers système
+.DS_Store
+Thumbs.db
