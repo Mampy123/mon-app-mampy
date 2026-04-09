@@ -1,5 +1,18 @@
 {
   "expo": {
+    "name": "MoneyKo",
+    "icon": "./assets/moneyko.png",
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/moneyko.png",
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "splash": {
+      "image": "./assets/moneyko.png"
+    }
+{
+  "expo": {
     "name": "Moneyko",
     "slug": "mon-app-mampy",
     "version": "1.0.0",
