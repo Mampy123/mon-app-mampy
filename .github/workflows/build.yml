@@ -1,19 +1,22 @@
 name: Build Android APK
 on:
   push:
-    branches: [main]
+    branches: [main] # Le build se lancera à chaque push sur main
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
+
       - name: Install dependencies
         run: npm install
+
       - name: Build APK
         run: npx eas-cli build --platform android --profile preview --non-interactive
         env:
