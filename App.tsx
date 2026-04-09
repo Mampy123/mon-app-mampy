@@ -127,7 +127,7 @@ export default function App() {
     Alert.alert(t.budgetUpdated, `${t.baseBudget}: ${newBaseBudget.toLocaleString('fr-FR')} Ar`);
   };
 
-  // ====================== HOME SCREEN ======================
+  // HOME SCREEN ======================
   const HomeScreen = ({ navigation }) => {
     const [search, setSearch] = useState("");
 
