@@ -1,27 +1,14 @@
 {
   "expo": {
-    "name": "MoneyKo",
-    "icon": "./assets/moneyko.png",
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/moneyko.png",
-        "backgroundColor": "#ffffff"
-      }
-    },
-    "splash": {
-      "image": "./assets/moneyko.png"
-    }
-{
-  "expo": {
     "name": "Moneyko",
     "slug": "mon-app-mampy",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/moneyko-png.png",
+    "icon": "./assets/moneyko.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/moneyko-png.png",
+      "image": "./assets/moneyko.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -31,7 +18,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/moneyko-png.png",
+        "foregroundImage": "./assets/moneyko.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
@@ -39,13 +26,16 @@
       "versionCode": 1
     },
     "web": {
-      "favicon": "./assets/moneyko-png.png"
+      "favicon": "./assets/moneyko.png"
     },
     "owner": "mampy123",
     "extra": {
       "eas": {
         "projectId": "27ad17fb-d30c-46ec-b8e1-f54d231f689d"
       }
-    }
+    },
+    "plugins": [
+      "expo-font"
+    ]
   }
 }
